@@ -13,7 +13,7 @@ texture2_rot: f32
 init :: proc() {
 	run = true
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
-	rl.InitWindow(1280, 720, "Odin + Raylib on the web")
+	rl.InitWindow(720, 720, "Odin + Raylib on the web")
 
 	// Anything in `assets` folder is available to load.
 	texture = rl.LoadTexture("assets/round_cat.png")
