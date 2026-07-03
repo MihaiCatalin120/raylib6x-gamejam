@@ -1,8 +1,6 @@
 package game
 
 import rl "vendor:raylib"
-import "core:log"
-import "core:fmt"
 import "core:c"
 
 run: bool
@@ -12,7 +10,7 @@ texture2_rot: f32
 
 init :: proc() {
 	run = true
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
+	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(720, 720, "Odin + Raylib on the web")
 
 	// Anything in `assets` folder is available to load.
@@ -46,21 +44,6 @@ update :: proc() {
 		rl.DrawTexturePro(texture2, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
 	}
 	rl.DrawTextureEx(texture, rl.GetMousePosition(), 0, 5, rl.WHITE)
-	rl.DrawRectangleRec({0, 0, 220, 130}, rl.BLACK)
-	rl.GuiLabel({10, 10, 200, 20}, "raygui works!")
-
-	if rl.GuiButton({10, 30, 200, 20}, "Print to log (see console)") {
-		log.info("log.info works!")
-		fmt.println("fmt.println too.")
-	}
-
-	if rl.GuiButton({10, 60, 200, 20}, "Source code (opens GitHub)") {
-		rl.OpenURL("https://github.com/karl-zylinski/odin-raylib-web")
-	}
-
-	if rl.GuiButton({10, 90, 200, 20}, "Quit") {
-		run = false
-	}
 
 	rl.EndDrawing()
 
@@ -71,7 +54,6 @@ update :: proc() {
 // In a web build, this is called when browser changes size. Remove the
 // `rl.SetWindowSize` call if you don't want a resizable game.
 parent_window_size_changed :: proc(w, h: int) {
-	rl.SetWindowSize(c.int(w), c.int(h))
 }
 
 shutdown :: proc() {
