@@ -46,14 +46,14 @@ draw_hex_row :: proc(start_pos: rl.Vector2, level: int, up: bool) {
 }
 
 draw_dialogue_box :: proc(start_pos: rl.Vector2) {
-    background: rl.Rectangle = {start_pos.x, start_pos.y, 720, 180}
-    rl.DrawRectangleGradientEx(background, {144, 238, 144, 255}, {152, 251, 152, 255}, {236, 255, 220, 255}, {236, 255, 220, 255})
+    background: rl.Rectangle = {start_pos.x + 10, start_pos.y, 700, 170}
+    // rl.DrawRectangleGradientEx(background, {144, 238, 144, 255}, {152, 251, 152, 255}, {236, 255, 220, 255}, {236, 255, 220, 255})
+    rl.DrawRectangleRounded(background, 0.2, 20, {152, 251, 152, 255})
 
-    BORDER_WIDTH :: 6
-    border: rl.Rectangle = {start_pos.x + BORDER_WIDTH, start_pos.y + BORDER_WIDTH, 720 - 2 * BORDER_WIDTH, 180 - 2 * BORDER_WIDTH}
+    border: rl.Rectangle = background
     rl.DrawRectangleRoundedLinesEx(border, 0.2, 20, 4, {69, 69, 69, 255})
 
-    avatar: rl.Rectangle = {border.x + BORDER_WIDTH, border.y + BORDER_WIDTH * 1.5, 150, 150}
+    avatar: rl.Rectangle = {border.x + 10, border.y + 10, 150, 150}
     rl.DrawRectangleRec(avatar, rl.YELLOW)
 
     message: rl.Rectangle = {avatar.x + 160, avatar.y, 540, 150}
