@@ -5,13 +5,18 @@ import rand "core:math/rand"
 import rl "vendor:raylib"
 
 run: bool
-level_finished: bool
+levels_finished: u8
+current_level_finished: bool
 hovered_group: int
+selected_group: int
+new_group_index: int
 grid_start_pos: rl.Vector2
+
 MAIN_PADDING :: 20
 HEX_SIDE_LENGTH :: 40
 HEX_SIDE_THICKNESS :: 4
 HONEYCOMB_SIZE :: 6
+MAX_LEVEL :: 20
 
 Honey_Color_Target :: struct {
 	r_min, r_max, g_min, g_max, b_min, b_max: u8,
@@ -41,10 +46,14 @@ get_hexagon_points :: proc(center: rl.Vector2, radius: f32) -> Hexagon_Points {
 	return {top, top_left, bottom_left, bottom, bottom_right, top_right}
 }
 
+check_valid_merge :: proc() -> bool {
+	return false
+}
+
 draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 	radius := f32(HEX_SIDE_LENGTH - HEX_SIDE_THICKNESS)
 	rotation: f32 = 90.0
-	// Compute vertices, but draw only the fill first
+
 	hexagon_points := get_hexagon_points(center, radius)
 	points: [6]rl.Vector2 = {
 		hexagon_points.top,
@@ -56,13 +65,32 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 	}
 
 	rl.DrawPoly(center, 6, radius, rotation, cell_data.color)
+	rl.DrawText(rl.TextFormat("%d", cell_data.group), i32(center.x), i32(center.y), 24, rl.BLACK)
 
 	hovered := rl.CheckCollisionPointPoly(rl.GetMousePosition(), &points[0], 6)
 	if hovered {
 		hovered_group = cell_data.group
+
+		if rl.IsMouseButtonPressed(.LEFT) {
+			if selected_group >= 0 {
+				//TODO(mihai): implement case - start two group merge
+				if check_valid_merge() {
+
+				} else {
+					selected_group = -1
+				}
+			}
+
+			if selected_group == -1 {
+				selected_group = cell_data.group
+			}
+		}
 	}
-	if hovered || (hovered_group > 0 && cell_data.group == hovered_group) {
+	if hovered || (hovered_group >= 0 && cell_data.group == hovered_group) {
 		rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, rl.BLACK)
+	}
+	if selected_group >= 0 && cell_data.group == selected_group {
+		rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, rl.RED)
 	}
 }
 
@@ -101,12 +129,13 @@ draw_hex_row :: proc(start_pos: rl.Vector2, level: int) {
 }
 
 draw_dialogue_box :: proc(start_pos: rl.Vector2) {
+	roundness: f32 = 0.2
 	background: rl.Rectangle = {start_pos.x + 10, start_pos.y, 700, 170}
 	// rl.DrawRectangleGradientEx(background, {144, 238, 144, 255}, {152, 251, 152, 255}, {236, 255, 220, 255}, {236, 255, 220, 255})
-	rl.DrawRectangleRounded(background, 0.2, 20, {152, 251, 152, 255})
+	rl.DrawRectangleRounded(background, roundness, 20, {152, 251, 152, 255})
 
 	border: rl.Rectangle = background
-	rl.DrawRectangleRoundedLinesEx(border, 0.2, 20, 4, {69, 69, 69, 255})
+	rl.DrawRectangleRoundedLinesEx(border, roundness, 20, 4, {69, 69, 69, 255})
 
 	avatar: rl.Rectangle = {border.x + 10, border.y + 10, 150, 150}
 	rl.DrawRectangleRec(avatar, rl.YELLOW)
@@ -116,12 +145,31 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 		message,
 		"That blasted witch keeps hexing my comb and \nmessing up all the cells! Will you help me?\n\n...please?",
 	)
-
-	draw_friendship_bar({100, 700})
 }
 
 draw_friendship_bar :: proc(start_pos: rl.Vector2) {
+	roundness: f32 = 1.0
+	background: rl.Rectangle = {
+		start_pos.x + 10,
+		start_pos.y,
+		f32(700 * int(levels_finished) / MAX_LEVEL),
+		20,
+	}
 
+	rl.DrawRectangleRounded(
+		background,
+		roundness,
+		20,
+		{
+			honey_color_target.r_max / 2 + honey_color_target.r_min / 2,
+			honey_color_target.g_max / 2 + honey_color_target.g_min / 2,
+			honey_color_target.b_max / 2 + honey_color_target.b_min / 2,
+			255,
+		},
+	)
+
+	border: rl.Rectangle = {start_pos.x + 10, start_pos.y, 700, 20}
+	rl.DrawRectangleRoundedLinesEx(border, roundness, 20, 4, {69, 69, 69, 255})
 }
 
 reset_cell_data :: proc() {
@@ -135,11 +183,11 @@ reset_cell_data :: proc() {
 			for g >= honey_color_target.g_min && g <= honey_color_target.g_max do g = u8(rand.int31() % 255)
 			for b >= honey_color_target.b_min && b <= honey_color_target.b_max do b = u8(rand.int31() % 255)
 
-			cells_data[row][col] = {{r, g, b, 200}, col > 2 && col < 5 ? 1 : -1}
+			cells_data[row][col] = {{r, g, b, 200}, row * HONEYCOMB_SIZE + col}
 		}
 	}
 
-	level_finished = false
+	current_level_finished = false
 }
 
 should_flush_hovered_group :: proc(start_pos: rl.Vector2, level: int) -> bool {
@@ -189,15 +237,17 @@ should_flush_hovered_group :: proc(start_pos: rl.Vector2, level: int) -> bool {
 
 init :: proc() {
 	run = true
-	level_finished = true
+	current_level_finished = true
 	hovered_group = -1
+	selected_group = -1
+	new_group_index = (HONEYCOMB_SIZE + 1) * HONEYCOMB_SIZE
 	honey_color_target = {180, 255, 120, 200, 20, 90}
 	grid_start_pos = {200, 240}
 
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(720, 720, "Help Meebee!")
 
-	if level_finished do reset_cell_data()
+	if current_level_finished do reset_cell_data()
 
 	rl.GuiSetStyle(.DEFAULT, i32(rl.GuiDefaultProperty.TEXT_SIZE), 24)
 	rl.GuiSetStyle(.DEFAULT, i32(rl.GuiDefaultProperty.TEXT_LINE_SPACING), 24)
@@ -209,6 +259,7 @@ update :: proc() {
 	rl.ClearBackground({255, 190, 66, 64})
 	{
 		draw_hex_row(grid_start_pos, 0)
+		draw_friendship_bar({0, 500})
 		draw_dialogue_box({0, 540})
 	}
 	rl.EndDrawing()
