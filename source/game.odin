@@ -7,8 +7,8 @@ import rl "vendor:raylib"
 run: bool
 levels_finished: u8
 current_level_finished: bool
-hovered_group: int
-selected_group: int
+is_group_hovered: bool
+is_group_selected: bool
 new_group_index: int
 grid_start_pos: rl.Vector2
 
@@ -23,8 +23,11 @@ Honey_Color_Target :: struct {
 }
 
 Cell_Data :: struct {
-	color: rl.Color,
-	group: int,
+	color:        rl.Color,
+	group:        int,
+	hovered:      bool,
+	selected:     bool,
+	valid_option: bool,
 }
 
 Hexagon_Points :: struct {
@@ -54,42 +57,13 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 	radius := f32(HEX_SIDE_LENGTH - HEX_SIDE_THICKNESS)
 	rotation: f32 = 90.0
 
-	hexagon_points := get_hexagon_points(center, radius)
-	points: [6]rl.Vector2 = {
-		hexagon_points.top,
-		hexagon_points.top_left,
-		hexagon_points.bottom_left,
-		hexagon_points.bottom,
-		hexagon_points.bottom_right,
-		hexagon_points.top_right,
-	}
-
 	rl.DrawPoly(center, 6, radius, rotation, cell_data.color)
 	rl.DrawText(rl.TextFormat("%d", cell_data.group), i32(center.x), i32(center.y), 24, rl.BLACK)
 
-	hovered := rl.CheckCollisionPointPoly(rl.GetMousePosition(), &points[0], 6)
-	if hovered {
-		hovered_group = cell_data.group
-
-		if rl.IsMouseButtonPressed(.LEFT) {
-			if selected_group >= 0 {
-				//TODO(mihai): implement case - start two group merge
-				if check_valid_merge() {
-
-				} else {
-					selected_group = -1
-				}
-			}
-
-			if selected_group == -1 {
-				selected_group = cell_data.group
-			}
-		}
-	}
-	if hovered || (hovered_group >= 0 && cell_data.group == hovered_group) {
+	if cell_data.hovered {
 		rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, rl.BLACK)
 	}
-	if selected_group >= 0 && cell_data.group == selected_group {
+	if cell_data.selected {
 		rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, rl.RED)
 	}
 }
@@ -183,7 +157,13 @@ reset_cell_data :: proc() {
 			for g >= honey_color_target.g_min && g <= honey_color_target.g_max do g = u8(rand.int31() % 255)
 			for b >= honey_color_target.b_min && b <= honey_color_target.b_max do b = u8(rand.int31() % 255)
 
-			cells_data[row][col] = {{r, g, b, 200}, row * HONEYCOMB_SIZE + col}
+			cells_data[row][col] = {
+				{r, g, b, 200},
+				row * HONEYCOMB_SIZE + col,
+				false,
+				false,
+				false,
+			}
 		}
 	}
 
@@ -235,11 +215,102 @@ should_flush_hovered_group :: proc(start_pos: rl.Vector2, level: int) -> bool {
 	return true
 }
 
+set_hovered_group :: proc(group: int) {
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
+			if cells_data[row][col].group == group do cells_data[row][col].hovered = true
+			if -1 == group do cells_data[row][col].hovered = false
+		}
+	}
+}
+
+set_selected_group :: proc(group: int) {
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
+			if cells_data[row][col].group == group do cells_data[row][col].selected = true
+			if -1 == group do cells_data[row][col].selected = false
+		}
+	}
+}
+
+
+compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
+	radius := f32(HEX_SIDE_LENGTH - HEX_SIDE_THICKNESS)
+
+	hexagon_points := get_hexagon_points(center, radius)
+	points: [6]rl.Vector2 = {
+		hexagon_points.top,
+		hexagon_points.top_left,
+		hexagon_points.bottom_left,
+		hexagon_points.bottom,
+		hexagon_points.bottom_right,
+		hexagon_points.top_right,
+	}
+
+	hovered := rl.CheckCollisionPointPoly(rl.GetMousePosition(), &points[0], 6)
+	if hovered {
+		cell_data.hovered = true
+		set_hovered_group(-1)
+		set_hovered_group(cell_data.group)
+
+		if rl.IsMouseButtonPressed(.LEFT) {
+			if is_group_selected {
+				//TODO(mihai): implement case - start two group merge
+				if check_valid_merge() {
+
+				} else {
+					is_group_selected = false
+					set_selected_group(-1)
+				}
+			}
+
+			if !is_group_selected {
+				is_group_selected = true
+				set_selected_group(cell_data.group)
+			}
+		}
+	}
+}
+
+compute_cell_states :: proc(start_pos: rl.Vector2, level: int) {
+	if math.abs(level) >= 4 do return
+
+	row_index := HONEYCOMB_SIZE / 2 + level
+
+	for i := 0; i < HONEYCOMB_SIZE - math.abs(level); i += 1 {
+		compute_cell_state(
+			start_pos + {f32(i * HEX_SIDE_LENGTH) * math.sqrt_f32(3.0), 0},
+			&cells_data[row_index][i],
+		)
+	}
+
+	if level == 0 {
+		compute_cell_states(
+			start_pos + {HEX_SIDE_LENGTH / 2 * math.sqrt_f32(3.0), -1.5 * HEX_SIDE_LENGTH},
+			level - 1,
+		)
+		compute_cell_states(
+			start_pos + {HEX_SIDE_LENGTH / 2 * math.sqrt_f32(3.0), 1.5 * HEX_SIDE_LENGTH},
+			level + 1,
+		)
+	} else if level < 0 {
+		compute_cell_states(
+			start_pos + {HEX_SIDE_LENGTH / 2 * math.sqrt_f32(3.0), -1.5 * HEX_SIDE_LENGTH},
+			level - 1,
+		)
+	} else {
+		compute_cell_states(
+			start_pos + {HEX_SIDE_LENGTH / 2 * math.sqrt_f32(3.0), 1.5 * HEX_SIDE_LENGTH},
+			level + 1,
+		)
+	}
+}
+
 init :: proc() {
 	run = true
 	current_level_finished = true
-	hovered_group = -1
-	selected_group = -1
+	is_group_hovered = false
+	is_group_selected = false
 	new_group_index = (HONEYCOMB_SIZE + 1) * HONEYCOMB_SIZE
 	honey_color_target = {180, 255, 120, 200, 20, 90}
 	grid_start_pos = {200, 240}
@@ -254,7 +325,11 @@ init :: proc() {
 }
 
 update :: proc() {
-	if should_flush_hovered_group(grid_start_pos, 0) do hovered_group = -1
+	if should_flush_hovered_group(grid_start_pos, 0) {
+		is_group_hovered = false
+		set_hovered_group(-1)
+	}
+	compute_cell_states(grid_start_pos, 0)
 	rl.BeginDrawing()
 	rl.ClearBackground({255, 190, 66, 64})
 	{
