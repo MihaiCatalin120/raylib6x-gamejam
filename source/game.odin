@@ -60,12 +60,17 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 	rl.DrawPoly(center, 6, radius, rotation, cell_data.color)
 	rl.DrawText(rl.TextFormat("%d", cell_data.group), i32(center.x), i32(center.y), 24, rl.BLACK)
 
+	outline_color: rl.Color = {0, 0, 0, 0}
 	if cell_data.hovered {
-		rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, rl.BLACK)
+		outline_color = rl.BLACK
 	}
 	if cell_data.selected {
-		rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, rl.RED)
+		outline_color = rl.RED
 	}
+	if cell_data.valid_option {
+		outline_color = rl.SKYBLUE
+	}
+	if outline_color.a > 0 do rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, outline_color)
 }
 
 draw_hex_row :: proc(start_pos: rl.Vector2, level: int) {
@@ -228,7 +233,10 @@ set_selected_group :: proc(group: int) {
 	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
 		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
 			if cells_data[row][col].group == group do cells_data[row][col].selected = true
-			if -1 == group do cells_data[row][col].selected = false
+			if -1 == group {
+				cells_data[row][col].selected = false
+				cells_data[row][col].valid_option = false
+			}
 		}
 	}
 }
@@ -306,6 +314,47 @@ compute_cell_states :: proc(start_pos: rl.Vector2, level: int) {
 	}
 }
 
+mark_valid_moves :: proc() {
+	//TOOD(mihai): fix
+	offsets_top: [6][2]int = {{1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}, {0, -1}}
+	offsets_middle: [6][2]int = {{1, 0}, {0, 1}, {1, -1}, {-1, 0}, {-1, -1}, {0, -1}}
+	offsets_bottom: [6][2]int = {{1, 0}, {0, 1}, {-1, 1}, {-1, 0}, {0, -1}, {1, -1}}
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		col_limit := HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row))
+		offsets: [6][2]int
+
+		if row > HONEYCOMB_SIZE / 2 do offsets = offsets_bottom
+		else if row == HONEYCOMB_SIZE / 2 do offsets = offsets_middle
+		else do offsets = offsets_top
+
+		for col := 0; col < col_limit; col += 1 {
+			if cells_data[row][col].selected do for i := 0; i < 6; i += 1 {
+				neighbour: [2]int = {row, col} + offsets[i]
+				if neighbour.x < 0 do continue
+				if neighbour.x >= HONEYCOMB_SIZE + 1 do continue
+				if neighbour.y < 0 do continue
+
+				if col == col_limit - 1 {
+					if row > HONEYCOMB_SIZE / 2 {
+						if neighbour.x < row {
+							if neighbour.y > col_limit do continue
+						} else do if neighbour.y >= col_limit do continue
+					} else if row == HONEYCOMB_SIZE / 2 {
+						if neighbour.y >= col_limit do continue
+					} else if row < HONEYCOMB_SIZE / 2 {
+						if neighbour.x > row {
+							if neighbour.y > col_limit do continue
+						} else do if neighbour.y >= col_limit do continue
+					}
+
+				} else do if neighbour.y >= col_limit do continue
+
+				cells_data[neighbour.x][neighbour.y].valid_option = true
+			}
+		}
+	}
+}
+
 init :: proc() {
 	run = true
 	current_level_finished = true
@@ -330,6 +379,8 @@ update :: proc() {
 		set_hovered_group(-1)
 	}
 	compute_cell_states(grid_start_pos, 0)
+	if is_group_selected do mark_valid_moves()
+
 	rl.BeginDrawing()
 	rl.ClearBackground({255, 190, 66, 64})
 	{
