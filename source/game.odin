@@ -1,11 +1,12 @@
 package game
 
+import fmt "core:fmt"
 import math "core:math"
 import rand "core:math/rand"
 import rl "vendor:raylib"
 
 run: bool
-levels_finished: u8
+score: u8
 current_level_finished: bool
 is_group_hovered: bool
 is_group_selected: bool
@@ -49,26 +50,22 @@ get_hexagon_points :: proc(center: rl.Vector2, radius: f32) -> Hexagon_Points {
 	return {top, top_left, bottom_left, bottom, bottom_right, top_right}
 }
 
-check_valid_merge :: proc() -> bool {
-	return false
-}
-
 draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
-	radius := f32(HEX_SIDE_LENGTH - HEX_SIDE_THICKNESS)
+	radius := f32(HEX_SIDE_LENGTH - HEX_SIDE_THICKNESS / 4)
 	rotation: f32 = 90.0
 
 	rl.DrawPoly(center, 6, radius, rotation, cell_data.color)
 	rl.DrawText(rl.TextFormat("%d", cell_data.group), i32(center.x), i32(center.y), 24, rl.BLACK)
 
-	outline_color: rl.Color = {0, 0, 0, 0}
-	if cell_data.hovered {
-		outline_color = rl.BLACK
-	}
+	outline_color: rl.Color = rl.YELLOW
 	if cell_data.selected {
 		outline_color = rl.RED
 	}
 	if cell_data.valid_option {
 		outline_color = rl.SKYBLUE
+	}
+	if cell_data.hovered {
+		outline_color = rl.BLACK
 	}
 	if outline_color.a > 0 do rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, outline_color)
 }
@@ -122,7 +119,7 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 	message: rl.Rectangle = {avatar.x + 160, avatar.y, 540, 150}
 	rl.GuiLabel(
 		message,
-		"That blasted witch keeps hexing my comb and \nmessing up all the cells! Will you help me?\n\n...please?",
+		"That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?",
 	)
 }
 
@@ -131,7 +128,7 @@ draw_friendship_bar :: proc(start_pos: rl.Vector2) {
 	background: rl.Rectangle = {
 		start_pos.x + 10,
 		start_pos.y,
-		f32(700 * int(levels_finished) / MAX_LEVEL),
+		f32(700 * int(score) / MAX_LEVEL),
 		20,
 	}
 
@@ -158,9 +155,16 @@ reset_cell_data :: proc() {
 			g := u8(rand.int31() % 255)
 			b := u8(rand.int31() % 255)
 
-			for r >= honey_color_target.r_min && r <= honey_color_target.r_max do r = u8(rand.int31() % 255)
-			for g >= honey_color_target.g_min && g <= honey_color_target.g_max do g = u8(rand.int31() % 255)
-			for b >= honey_color_target.b_min && b <= honey_color_target.b_max do b = u8(rand.int31() % 255)
+			for r >= honey_color_target.r_min &&
+			    r <= honey_color_target.r_max &&
+			    g >= honey_color_target.g_min &&
+			    g <= honey_color_target.g_max &&
+			    b >= honey_color_target.b_min &&
+			    b <= honey_color_target.b_max {
+				r = u8(rand.int31() % 255)
+				g = u8(rand.int31() % 255)
+				b = u8(rand.int31() % 255)
+			}
 
 			cells_data[row][col] = {
 				{r, g, b, 200},
@@ -172,6 +176,7 @@ reset_cell_data :: proc() {
 		}
 	}
 
+	new_group_index = (HONEYCOMB_SIZE + 1) * HONEYCOMB_SIZE
 	current_level_finished = false
 }
 
@@ -241,6 +246,95 @@ set_selected_group :: proc(group: int) {
 	}
 }
 
+merge_groups :: proc(target_group: int) -> (rl.Color, int) {
+	if !is_group_selected do return {0, 0, 0, 0}, -1
+
+	source: [2]int
+	source_group: int
+	target: [2]int
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
+			if cells_data[row][col].selected {
+				source = {row, col}
+				source_group = cells_data[row][col].group
+			}
+			if cells_data[row][col].group == target_group do target = {row, col}
+		}
+	}
+
+	source_merge_ratio := 0.5
+	target_merge_ratio := 0.5
+	new_color: rl.Color = {
+		u8(
+			f64(cells_data[source.x][source.y].color.r) * source_merge_ratio +
+			f64(cells_data[target.x][target.y].color.r) * target_merge_ratio,
+		),
+		u8(
+			f64(cells_data[source.x][source.y].color.g) * source_merge_ratio +
+			f64(cells_data[target.x][target.y].color.g) * target_merge_ratio,
+		),
+		u8(
+			f64(cells_data[source.x][source.y].color.b) * source_merge_ratio +
+			f64(cells_data[target.x][target.y].color.b) * target_merge_ratio,
+		),
+		255,
+	}
+
+	// new_color: rl.Color = {
+	// 	cells_data[source.x][source.y].color.r / 2 + cells_data[target.x][target.y].color.r / 2,
+	// 	cells_data[source.x][source.y].color.g / 2 + cells_data[target.x][target.y].color.g / 2,
+	// 	cells_data[source.x][source.y].color.b / 2 + cells_data[target.x][target.y].color.b / 2,
+	// 	255,
+	// }
+	new_group := new_group_index
+	new_group_index += 1
+
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
+			if cells_data[row][col].group == source_group ||
+			   cells_data[row][col].group == target_group {
+				cells_data[row][col].group = new_group
+				cells_data[row][col].color = new_color
+			}
+		}
+	}
+
+	return new_color, new_group
+}
+
+check_winning_color :: proc(color: rl.Color) -> bool {
+	if color.r < honey_color_target.r_min || color.r > honey_color_target.r_max do return false
+	if color.g < honey_color_target.g_min || color.g > honey_color_target.g_max do return false
+	if color.b < honey_color_target.b_min || color.b > honey_color_target.b_max do return false
+
+	return true
+}
+
+check_stuck_grid :: proc() -> bool {
+	prev_group := -1
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
+			if prev_group != -1 && (prev_group != cells_data[row][col].group) do return false
+			else do prev_group = cells_data[row][col].group
+		}
+	}
+
+	return true
+}
+
+process_win :: proc() {
+	fmt.println("DEBUG: Won round!!!!!")
+	score += 3
+	current_level_finished = true
+	reset_cell_data()
+}
+
+process_lose :: proc() {
+	fmt.println("DEBUG: Lost round......")
+	if score > 0 do score -= 1
+	current_level_finished = true
+	reset_cell_data()
+}
 
 compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 	radius := f32(HEX_SIDE_LENGTH - HEX_SIDE_THICKNESS)
@@ -263,13 +357,19 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 
 		if rl.IsMouseButtonPressed(.LEFT) {
 			if is_group_selected {
-				//TODO(mihai): implement case - start two group merge
-				if check_valid_merge() {
+				if cell_data.valid_option {
+					new_color, new_group := merge_groups(cell_data.group)
+					assert(
+						new_group != -1,
+						"Merge group should always succeed, and return a valid new group at the end",
+					)
+					if check_winning_color(new_color) do process_win()
+					else if check_stuck_grid() do process_lose()
 
-				} else {
-					is_group_selected = false
-					set_selected_group(-1)
 				}
+
+				is_group_selected = false
+				set_selected_group(-1)
 			}
 
 			if !is_group_selected {
@@ -315,7 +415,6 @@ compute_cell_states :: proc(start_pos: rl.Vector2, level: int) {
 }
 
 mark_valid_moves :: proc() {
-	//TOOD(mihai): fix
 	offsets_top: [6][2]int = {{1, 0}, {1, 1}, {0, 1}, {-1, 0}, {-1, -1}, {0, -1}}
 	offsets_middle: [6][2]int = {{1, 0}, {0, 1}, {1, -1}, {-1, 0}, {-1, -1}, {0, -1}}
 	offsets_bottom: [6][2]int = {{1, 0}, {0, 1}, {-1, 1}, {-1, 0}, {0, -1}, {1, -1}}
@@ -349,7 +448,7 @@ mark_valid_moves :: proc() {
 
 				} else do if neighbour.y >= col_limit do continue
 
-				cells_data[neighbour.x][neighbour.y].valid_option = true
+				if !cells_data[neighbour.x][neighbour.y].selected do cells_data[neighbour.x][neighbour.y].valid_option = true
 			}
 		}
 	}
