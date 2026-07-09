@@ -8,10 +8,12 @@ import rl "vendor:raylib"
 run: bool
 score: u8
 current_level_finished: bool
+won_game: bool
 is_group_hovered: bool
 is_group_selected: bool
 new_group_index: int
 grid_start_pos: rl.Vector2
+meebee: Meebee
 
 MAIN_PADDING :: 20
 HEX_SIDE_LENGTH :: 40
@@ -29,6 +31,17 @@ Cell_Data :: struct {
 	hovered:      bool,
 	selected:     bool,
 	valid_option: bool,
+}
+
+Meebee_Feeling :: enum {
+	HAPPY,
+	MEH,
+	SAD,
+}
+
+Meebee :: struct {
+	happy, meh, sad: rl.Texture2D,
+	feeling:         Meebee_Feeling,
 }
 
 Hexagon_Points :: struct {
@@ -55,14 +68,14 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 	rotation: f32 = 90.0
 
 	rl.DrawPoly(center, 6, radius, rotation, cell_data.color)
-	rl.DrawText(rl.TextFormat("%d", cell_data.group), i32(center.x), i32(center.y), 24, rl.BLACK)
+	// rl.DrawText(rl.TextFormat("%d", cell_data.group), i32(center.x), i32(center.y), 24, rl.BLACK)
 
 	outline_color: rl.Color = rl.YELLOW
 	if cell_data.selected {
 		outline_color = rl.RED
 	}
 	if cell_data.valid_option {
-		outline_color = rl.SKYBLUE
+		outline_color = rl.WHITE
 	}
 	if cell_data.hovered {
 		outline_color = rl.BLACK
@@ -113,8 +126,20 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 	border: rl.Rectangle = background
 	rl.DrawRectangleRoundedLinesEx(border, roundness, 20, 4, {69, 69, 69, 255})
 
+	avatar_texture: rl.Texture2D
+	switch meebee.feeling {
+	case .HAPPY:
+		avatar_texture = meebee.happy
+	case .MEH:
+		avatar_texture = meebee.meh
+	case .SAD:
+		avatar_texture = meebee.sad
+	}
+
+	source_avatar: rl.Rectangle = {0, 0, f32(avatar_texture.width), f32(avatar_texture.height)}
 	avatar: rl.Rectangle = {border.x + 10, border.y + 10, 150, 150}
 	rl.DrawRectangleRec(avatar, rl.YELLOW)
+	rl.DrawTexturePro(avatar_texture, source_avatar, avatar, {0, 0}, 0, rl.WHITE)
 
 	message: rl.Rectangle = {avatar.x + 160, avatar.y, 540, 150}
 	rl.GuiLabel(
@@ -137,9 +162,12 @@ draw_friendship_bar :: proc(start_pos: rl.Vector2) {
 		roundness,
 		20,
 		{
-			honey_color_target.r_max / 2 + honey_color_target.r_min / 2,
-			honey_color_target.g_max / 2 + honey_color_target.g_min / 2,
-			honey_color_target.b_max / 2 + honey_color_target.b_min / 2,
+			// honey_color_target.r_max / 2 + honey_color_target.r_min / 2,
+			// honey_color_target.g_max / 2 + honey_color_target.g_min / 2,
+			// honey_color_target.b_max / 2 + honey_color_target.b_min / 2,
+			251,
+			255,
+			0,
 			255,
 		},
 	)
@@ -153,7 +181,8 @@ reset_cell_data :: proc() {
 		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
 			r := u8(rand.int31() % 255)
 			g := u8(rand.int31() % 255)
-			b := u8(rand.int31() % 255)
+			// b := u8(rand.int31() % 255)
+			b := honey_color_target.b_max / 2 + honey_color_target.b_min / 2
 
 			for r >= honey_color_target.r_min &&
 			    r <= honey_color_target.r_max &&
@@ -163,7 +192,8 @@ reset_cell_data :: proc() {
 			    b <= honey_color_target.b_max {
 				r = u8(rand.int31() % 255)
 				g = u8(rand.int31() % 255)
-				b = u8(rand.int31() % 255)
+				// b = u8(rand.int31() % 255)
+				b = honey_color_target.b_max / 2 + honey_color_target.b_min / 2
 			}
 
 			cells_data[row][col] = {
@@ -280,12 +310,6 @@ merge_groups :: proc(target_group: int) -> (rl.Color, int) {
 		255,
 	}
 
-	// new_color: rl.Color = {
-	// 	cells_data[source.x][source.y].color.r / 2 + cells_data[target.x][target.y].color.r / 2,
-	// 	cells_data[source.x][source.y].color.g / 2 + cells_data[target.x][target.y].color.g / 2,
-	// 	cells_data[source.x][source.y].color.b / 2 + cells_data[target.x][target.y].color.b / 2,
-	// 	255,
-	// }
 	new_group := new_group_index
 	new_group_index += 1
 
@@ -295,6 +319,7 @@ merge_groups :: proc(target_group: int) -> (rl.Color, int) {
 			   cells_data[row][col].group == target_group {
 				cells_data[row][col].group = new_group
 				cells_data[row][col].color = new_color
+				cells_data[row][col].valid_option = false
 			}
 		}
 	}
@@ -325,8 +350,13 @@ check_stuck_grid :: proc() -> bool {
 process_win :: proc() {
 	fmt.println("DEBUG: Won round!!!!!")
 	score += 3
+	if score >= 20 {
+		score = 20
+		won_game = true
+	}
 	current_level_finished = true
 	reset_cell_data()
+	meebee.feeling = .HAPPY
 }
 
 process_lose :: proc() {
@@ -334,6 +364,8 @@ process_lose :: proc() {
 	if score > 0 do score -= 1
 	current_level_finished = true
 	reset_cell_data()
+	if score > 0 do meebee.feeling = .MEH
+	else do meebee.feeling = .SAD
 }
 
 compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
@@ -356,7 +388,10 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 		set_hovered_group(cell_data.group)
 
 		if rl.IsMouseButtonPressed(.LEFT) {
-			if is_group_selected {
+			if !is_group_selected {
+				is_group_selected = true
+				set_selected_group(cell_data.group)
+			} else {
 				if cell_data.valid_option {
 					new_color, new_group := merge_groups(cell_data.group)
 					assert(
@@ -366,15 +401,14 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 					if check_winning_color(new_color) do process_win()
 					else if check_stuck_grid() do process_lose()
 
+					is_group_selected = true
+					set_selected_group(cell_data.group)
+				} else {
+					is_group_selected = true
+					set_selected_group(-1)
+					set_selected_group(cell_data.group)
 				}
 
-				is_group_selected = false
-				set_selected_group(-1)
-			}
-
-			if !is_group_selected {
-				is_group_selected = true
-				set_selected_group(cell_data.group)
 			}
 		}
 	}
@@ -457,6 +491,7 @@ mark_valid_moves :: proc() {
 init :: proc() {
 	run = true
 	current_level_finished = true
+	won_game = false
 	is_group_hovered = false
 	is_group_selected = false
 	new_group_index = (HONEYCOMB_SIZE + 1) * HONEYCOMB_SIZE
@@ -465,6 +500,13 @@ init :: proc() {
 
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(720, 720, "Help Meebee!")
+
+	meebee = {
+		rl.LoadTexture("assets/meebee.png"),
+		rl.LoadTexture("assets/meebee_meh.png"),
+		rl.LoadTexture("assets/meebee_sad.png"),
+		Meebee_Feeling.SAD,
+	}
 
 	if current_level_finished do reset_cell_data()
 
@@ -499,6 +541,9 @@ parent_window_size_changed :: proc(w, h: int) {
 }
 
 shutdown :: proc() {
+	rl.UnloadTexture(meebee.happy)
+	rl.UnloadTexture(meebee.meh)
+	rl.UnloadTexture(meebee.sad)
 	rl.CloseWindow()
 }
 
