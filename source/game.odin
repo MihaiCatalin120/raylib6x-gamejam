@@ -453,8 +453,15 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 						new_group != -1,
 						"Merge group should always succeed, and return a valid new group at the end",
 					)
-					if check_winning_color(new_color) do process_win()
-					else if check_stuck_grid() do process_lose()
+					if check_winning_color(new_color) {
+						process_win()
+						return
+					}
+
+					if check_stuck_grid() {
+						process_lose()
+						return
+					}
 
 					is_group_selected = true
 					set_selected_group(cell_data.group)
@@ -553,7 +560,7 @@ load_messages :: proc() {
 		{
 			"Thank you so much!",
 			"I think I need to clean the jars, has been a\nwhile since I got anything...",
-			"",
+			"I, Meebee, promise will pay back all the help\nreceived",
 		},
 		{
 			"Wait, are you also a bee? You seem to figure\nthis out way better than I expected!",
@@ -563,7 +570,7 @@ load_messages :: proc() {
 		{
 			"If anybody annoys you ever, just reach out\nfor me, okay?",
 			"At this point you could take care of the comb\nand I'll just defend it",
-			"Ooh, thank you!",
+			"You make Mee Bee so happy!\n\n...hope you like puns",
 		},
 	}
 
