@@ -3,6 +3,7 @@ package game
 import fmt "core:fmt"
 import math "core:math"
 import rand "core:math/rand"
+import strings "core:strings"
 import rl "vendor:raylib"
 
 run: bool
@@ -14,6 +15,8 @@ is_group_selected: bool
 new_group_index: int
 grid_start_pos: rl.Vector2
 meebee: Meebee
+messages_win, messages_lose: [4][3]string
+current_message: string
 
 MAIN_PADDING :: 20
 HEX_SIDE_LENGTH :: 40
@@ -71,16 +74,36 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 	// rl.DrawText(rl.TextFormat("%d", cell_data.group), i32(center.x), i32(center.y), 24, rl.BLACK)
 
 	outline_color: rl.Color = rl.YELLOW
-	if cell_data.selected {
-		outline_color = rl.RED
-	}
-	if cell_data.valid_option {
-		outline_color = rl.WHITE
-	}
-	if cell_data.hovered {
-		outline_color = rl.BLACK
+	if !won_game {
+		if cell_data.selected {
+			outline_color = rl.RED
+		}
+		if cell_data.valid_option {
+			outline_color = rl.WHITE
+		}
+		if cell_data.hovered {
+			outline_color = rl.BLACK
+		}
 	}
 	if outline_color.a > 0 do rl.DrawPolyLinesEx(center, 6, radius, rotation, HEX_SIDE_THICKNESS, outline_color)
+}
+
+draw_won_text :: proc() {
+	if won_game {
+		start_x: i32 = 290
+		y1: i32 = 160
+		y2: i32 = 280
+		rl.DrawText("Y", start_x, y1, 48, rl.BLACK)
+		rl.DrawText("O", start_x + 1.75 * HEX_SIDE_LENGTH, y1, 48, rl.BLACK)
+		rl.DrawText("U", start_x + 3.5 * HEX_SIDE_LENGTH, y1, 48, rl.BLACK)
+
+		rl.DrawText("W", start_x, y2, 48, rl.BLACK)
+		rl.DrawText("O", start_x + 1.75 * HEX_SIDE_LENGTH, y2, 48, rl.BLACK)
+		rl.DrawText("N", start_x + 3.5 * HEX_SIDE_LENGTH, y2, 48, rl.BLACK)
+
+		rl.DrawText("!", 265 + 1.75 * HEX_SIDE_LENGTH, 340, 48, rl.BLACK)
+		rl.DrawText("!", 265 + 3.5 * HEX_SIDE_LENGTH, 340, 48, rl.BLACK)
+	}
 }
 
 draw_hex_row :: proc(start_pos: rl.Vector2, level: int) {
@@ -93,7 +116,10 @@ draw_hex_row :: proc(start_pos: rl.Vector2, level: int) {
 			start_pos + {f32(i * HEX_SIDE_LENGTH) * math.sqrt_f32(3.0), 0},
 			cells_data[row_index][i],
 		)
+
 	}
+
+	draw_won_text()
 
 	if level == 0 {
 		draw_hex_row(
@@ -142,10 +168,7 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 	rl.DrawTexturePro(avatar_texture, source_avatar, avatar, {0, 0}, 0, rl.WHITE)
 
 	message: rl.Rectangle = {avatar.x + 160, avatar.y, 540, 150}
-	rl.GuiLabel(
-		message,
-		"That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?",
-	)
+	rl.GuiLabel(message, strings.clone_to_cstring(current_message))
 }
 
 draw_friendship_bar :: proc(start_pos: rl.Vector2) {
@@ -347,16 +370,43 @@ check_stuck_grid :: proc() -> bool {
 	return true
 }
 
+pick_message :: proc(happy: bool) {
+	message_pool: [4][3]string
+
+	if happy do message_pool = messages_win
+	else do message_pool = messages_lose
+
+	tier := score / 5
+	pick := rl.GetRandomValue(0, 2)
+
+	current_message = message_pool[tier][pick]
+}
+
+set_winning_board :: proc() {
+	is_group_selected = false
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
+			cells_data[row][col].color = {0, 0, 0, 0}
+			cells_data[row][col].selected = false
+			cells_data[row][col].valid_option = false
+		}
+	}
+}
+
 process_win :: proc() {
 	fmt.println("DEBUG: Won round!!!!!")
 	score += 3
 	if score >= 20 {
 		score = 20
+		set_winning_board()
 		won_game = true
+		current_message = "I will forever grateful for all the help you have\ngiven me! Hope we see each other soon!"
+		return
 	}
 	current_level_finished = true
 	reset_cell_data()
 	meebee.feeling = .HAPPY
+	pick_message(true)
 }
 
 process_lose :: proc() {
@@ -366,6 +416,7 @@ process_lose :: proc() {
 	reset_cell_data()
 	if score > 0 do meebee.feeling = .MEH
 	else do meebee.feeling = .SAD
+	pick_message(false)
 }
 
 compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
@@ -382,7 +433,7 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 	}
 
 	hovered := rl.CheckCollisionPointPoly(rl.GetMousePosition(), &points[0], 6)
-	if hovered {
+	if hovered && !won_game {
 		cell_data.hovered = true
 		set_hovered_group(-1)
 		set_hovered_group(cell_data.group)
@@ -488,6 +539,54 @@ mark_valid_moves :: proc() {
 	}
 }
 
+load_messages :: proc() {
+	messages_win = {
+		{
+			"Ooh, thank you!",
+			"Thanks! I think I have it from here...",
+			"Did not expect you to do it at all, thank you!",
+		},
+		{
+			"Thank you so much!",
+			"I think I need to clean the jars, has been a\nwhile since I got anything...",
+			"",
+		},
+		{
+			"Wait, are you also a bee? You seem to figure\nthis out way better than I expected!",
+			"I'll make sure to keep some honey for you\nafter all of this",
+			"Are you also a witch hunter by any chance?\nMaybe I can get rid of this forever",
+		},
+		{
+			"If anybody annoys you ever, just reach out\nfor me, okay?",
+			"At this point you could take care of the comb\nand I'll just defend it",
+			"Ooh, thank you!",
+		},
+	}
+
+	messages_lose = {
+		{
+			"It's okay... maybe it will arrange itself after I\nwake up from a nap",
+			"At least you tried...",
+			"I will manage, it's fine...",
+		},
+		{
+			"Oof, you were so close...",
+			"Almost.. it's alright",
+			"The cells are too warped, maybe I should leave\nit as is...",
+		},
+		{
+			"I was minding my business.. and the witch pushed me of the flower! Of course I tried to sting her..",
+			"Maybe it will be faster if I learn the spell to\nreverse this..",
+			"I will make sure witches will have +100% \"discount\" on my honey jars! Yes, 100%, plus an extra sting pack while at it",
+		},
+		{
+			"Maybe I am too foolish to think I can do it all today...",
+			"You were too kind already, it is fine...",
+			"I will manage, it's fine...",
+		},
+	}
+}
+
 init :: proc() {
 	run = true
 	current_level_finished = true
@@ -507,6 +606,10 @@ init :: proc() {
 		rl.LoadTexture("assets/meebee_sad.png"),
 		Meebee_Feeling.SAD,
 	}
+
+	load_messages()
+
+	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
 
 	if current_level_finished do reset_cell_data()
 
