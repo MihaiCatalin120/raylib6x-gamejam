@@ -37,14 +37,15 @@ Cell_Data :: struct {
 }
 
 Meebee_Feeling :: enum {
+	LOVE,
 	HAPPY,
 	MEH,
 	SAD,
 }
 
 Meebee :: struct {
-	happy, meh, sad: rl.Texture2D,
-	feeling:         Meebee_Feeling,
+	happy, meh, sad, love: rl.Texture2D,
+	feeling:               Meebee_Feeling,
 }
 
 Hexagon_Points :: struct {
@@ -89,21 +90,21 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 }
 
 draw_won_text :: proc() {
-	if won_game {
-		start_x: i32 = 290
-		y1: i32 = 160
-		y2: i32 = 280
-		rl.DrawText("Y", start_x, y1, 48, rl.BLACK)
-		rl.DrawText("O", start_x + 1.75 * HEX_SIDE_LENGTH, y1, 48, rl.BLACK)
-		rl.DrawText("U", start_x + 3.5 * HEX_SIDE_LENGTH, y1, 48, rl.BLACK)
+	if !won_game do return
 
-		rl.DrawText("W", start_x, y2, 48, rl.BLACK)
-		rl.DrawText("O", start_x + 1.75 * HEX_SIDE_LENGTH, y2, 48, rl.BLACK)
-		rl.DrawText("N", start_x + 3.5 * HEX_SIDE_LENGTH, y2, 48, rl.BLACK)
+	start_x: i32 = 290
+	y1: i32 = 160
+	y2: i32 = 280
+	rl.DrawText("Y", start_x, y1, 48, rl.BLACK)
+	rl.DrawText("O", start_x + 1.75 * HEX_SIDE_LENGTH, y1, 48, rl.BLACK)
+	rl.DrawText("U", start_x + 3.5 * HEX_SIDE_LENGTH, y1, 48, rl.BLACK)
 
-		rl.DrawText("!", 265 + 1.75 * HEX_SIDE_LENGTH, 340, 48, rl.BLACK)
-		rl.DrawText("!", 265 + 3.5 * HEX_SIDE_LENGTH, 340, 48, rl.BLACK)
-	}
+	rl.DrawText("W", start_x, y2, 48, rl.BLACK)
+	rl.DrawText("O", start_x + 1.75 * HEX_SIDE_LENGTH, y2, 48, rl.BLACK)
+	rl.DrawText("N", start_x + 3.5 * HEX_SIDE_LENGTH, y2, 48, rl.BLACK)
+
+	rl.DrawText("!", 265 + 1.75 * HEX_SIDE_LENGTH, 340, 48, rl.BLACK)
+	rl.DrawText("!", 265 + 3.5 * HEX_SIDE_LENGTH, 340, 48, rl.BLACK)
 }
 
 draw_hex_row :: proc(start_pos: rl.Vector2, level: int) {
@@ -160,6 +161,8 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 		avatar_texture = meebee.meh
 	case .SAD:
 		avatar_texture = meebee.sad
+	case .LOVE:
+		avatar_texture = meebee.love
 	}
 
 	source_avatar: rl.Rectangle = {0, 0, f32(avatar_texture.width), f32(avatar_texture.height)}
@@ -401,6 +404,7 @@ process_win :: proc() {
 		set_winning_board()
 		won_game = true
 		current_message = "I will forever grateful for all the help you have\ngiven me! Hope we see each other soon!"
+		meebee.feeling = .LOVE
 		return
 	}
 	current_level_finished = true
@@ -604,6 +608,7 @@ init :: proc() {
 		rl.LoadTexture("assets/meebee.png"),
 		rl.LoadTexture("assets/meebee_meh.png"),
 		rl.LoadTexture("assets/meebee_sad.png"),
+		rl.LoadTexture("assets/meebee_love.png"),
 		Meebee_Feeling.SAD,
 	}
 
