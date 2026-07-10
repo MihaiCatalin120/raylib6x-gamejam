@@ -13,6 +13,7 @@ won_game: bool
 is_group_hovered: bool
 is_group_selected: bool
 show_help: bool
+should_restart: bool
 new_group_index: int
 grid_start_pos: rl.Vector2
 meebee: Meebee
@@ -182,10 +183,18 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 	message: rl.Rectangle = {avatar.x + 160, avatar.y, 540, 150}
 	rl.GuiLabel(message, strings.clone_to_cstring(current_message))
 
-    help: rl.Rectangle = {message.x + 450, message.y + 120, 60, 30}
-    if rl.GuiButton(help, "Help") {
-        show_help = true
-        rl.PlaySound(game_sfx.select)
+    if won_game {
+        restart: rl.Rectangle = {message.x + 410, message.y + 120, 100, 30}
+        if rl.GuiButton(restart, "Restart") {
+            should_restart = true
+            rl.PlaySound(game_sfx.select)
+        }
+    } else {
+        help: rl.Rectangle = {message.x + 450, message.y + 120, 60, 30}
+        if rl.GuiButton(help, "Help") {
+            show_help = true
+            rl.PlaySound(game_sfx.select)
+        }
     }
 }
 
@@ -663,7 +672,22 @@ draw_help :: proc() {
     }
 
     help: rl.Rectangle = {border.x + HELP_PADDING, border.y + HELP_PADDING, border.width - 2 * HELP_PADDING, border.height - 2 * HELP_PADDING}
-    rl.GuiLabel(help, "Help Meebee gather as much honey as possible!\nCombine honey-like comb cells to advance further and gain\nmore trust.\n\nAny two adjacent cells can be combined, and once they do\nit is considered a single group\n\nYou can combine groups together by merging their\nouter-layer cells\n\nHave fun!")
+    rl.GuiLabel(help, "Help Meebee gather as much honey as possible!\nCombine honey-like comb cells to advance further and gain\nmore trust.\n\nAny two adjacent cells can be combined, once they do\nit is considered a single group.\n\nYou can combine groups together by merging their\nouter-layer cells.\n\nHave fun!")
+}
+
+restart_game :: proc() {
+    reset_cell_data()
+
+	won_game = false
+	is_group_hovered = false
+	is_group_selected = false
+    show_help = false
+    meebee.feeling = .SAD
+    score = 0
+	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
+    background_music = background_music_1
+
+    should_restart = false
 }
 
 init :: proc() {
@@ -672,6 +696,8 @@ init :: proc() {
 	won_game = false
 	is_group_hovered = false
 	is_group_selected = false
+    show_help = false
+    should_restart = false
 	new_group_index = (HONEYCOMB_SIZE + 1) * HONEYCOMB_SIZE
 	honey_color_target = {180, 255, 120, 200, 20, 90}
 	grid_start_pos = {200, 240}
@@ -697,6 +723,7 @@ init :: proc() {
     }
 
     rl.SetSoundVolume(game_sfx.win_round, 0.8)
+    rl.SetSoundVolume(game_sfx.won_game, 0.8)
 
     background_music_1 = rl.LoadMusicStream("assets/background1.wav")
     background_music_2 = rl.LoadMusicStream("assets/background2.wav")
@@ -716,6 +743,7 @@ init :: proc() {
 }
 
 update :: proc() {
+    if should_restart do restart_game()
     rl.UpdateMusicStream(background_music)
 	if should_flush_hovered_group(grid_start_pos, 0) {
 		is_group_hovered = false
