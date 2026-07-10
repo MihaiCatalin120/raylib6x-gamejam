@@ -53,12 +53,15 @@ Hexagon_Points :: struct {
 }
 
 Sfx :: struct {
-    lose, merge, select, win_round: rl.Sound,
+    lose, merge, select, win_round, won_game: rl.Sound,
 }
 
 honey_color_target: Honey_Color_Target
 cells_data: [HONEYCOMB_SIZE + 1][HONEYCOMB_SIZE]Cell_Data
 game_sfx: Sfx
+background_music: rl.Music
+background_music_1: rl.Music
+background_music_2: rl.Music
 
 get_hexagon_points :: proc(center: rl.Vector2, radius: f32) -> Hexagon_Points {
 	pos_increment_unit: f32 = radius / 2 * math.sqrt_f32(3.0)
@@ -415,12 +418,18 @@ set_winning_board :: proc() {
 process_win :: proc() {
 	fmt.println("DEBUG: Won round!!!!!")
 	score += 3
-	if score >= 20 {
-		score = 20
+    if score >= 10 {
+        background_music = background_music_2
+        rl.PlayMusicStream(background_music)
+    }
+	if score >= MAX_LEVEL {
+		score = MAX_LEVEL
 		set_winning_board()
 		won_game = true
 		current_message = "I will forever grateful for all the help you have\ngiven me! Hope we see each other soon!"
 		meebee.feeling = .LOVE
+        rl.StopMusicStream(background_music)
+        rl.PlaySound(game_sfx.won_game)
 		return
 	}
 	current_level_finished = true
@@ -433,6 +442,10 @@ process_win :: proc() {
 process_lose :: proc() {
 	fmt.println("DEBUG: Lost round......")
 	if score > 0 do score -= 1
+    if score < 10 {
+        background_music = background_music_1
+        rl.PlayMusicStream(background_music)
+    }
 	current_level_finished = true
 	reset_cell_data()
 	if score > 0 do meebee.feeling = .MEH
@@ -486,7 +499,7 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
                     rl.PlaySound(game_sfx.merge)
 				} else {
                     selected_group := get_selected_group()
-                    assert(selected_group != -1, "A group should have selected status when the global variable is_group_selected is true")
+                    // assert(selected_group != -1, "A group should have selected status when the global variable is_group_selected is true")
                     set_selected_group(-1)
                     is_group_selected = false
                     if selected_group != cell_data.group {
@@ -616,9 +629,9 @@ load_messages :: proc() {
 			"I will make sure witches will have +100%\n\"discount\" on my honey jars!\n\nYes, 100%, plus an extra sting pack while at it",
 		},
 		{
-			"Maybe I am too foolish to think I can do it all today...",
+			"Maybe I am too foolish to think I can do it all\ntoday...",
 			"You were too kind already, it is fine...",
-			"Don't stress to much, you did way better than me at least...",
+			"Don't stress to much, you did way better than\nme at least...",
 		},
 	}
 }
@@ -650,8 +663,13 @@ init :: proc() {
         rl.LoadSound("assets/merge.wav"),
         rl.LoadSound("assets/select.wav"),
         rl.LoadSound("assets/win_round.wav"),
+        rl.LoadSound("assets/won_game.wav"),
     }
 
+    background_music_1 = rl.LoadMusicStream("assets/background1.wav")
+    background_music_2 = rl.LoadMusicStream("assets/background2.wav")
+    background_music = background_music_1
+    rl.PlayMusicStream(background_music)
 	load_messages()
 
 	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
@@ -663,6 +681,7 @@ init :: proc() {
 }
 
 update :: proc() {
+    rl.UpdateMusicStream(background_music)
 	if should_flush_hovered_group(grid_start_pos, 0) {
 		is_group_hovered = false
 		set_hovered_group(-1)
@@ -698,6 +717,9 @@ shutdown :: proc() {
     rl.UnloadSound(game_sfx.merge)
     rl.UnloadSound(game_sfx.select)
     rl.UnloadSound(game_sfx.win_round)
+    rl.UnloadMusicStream(background_music)
+    rl.UnloadMusicStream(background_music_1)
+    rl.UnloadMusicStream(background_music_2)
     rl.CloseAudioDevice()
 }
 
