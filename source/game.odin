@@ -12,13 +12,14 @@ current_level_finished: bool
 won_game: bool
 is_group_hovered: bool
 is_group_selected: bool
+show_help: bool
 new_group_index: int
 grid_start_pos: rl.Vector2
 meebee: Meebee
 messages_win, messages_lose: [4][3]string
 current_message: string
 
-MAIN_PADDING :: 20
+HELP_PADDING :: 20
 HEX_SIDE_LENGTH :: 40
 HEX_SIDE_THICKNESS :: 4
 HONEYCOMB_SIZE :: 6
@@ -180,6 +181,12 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 
 	message: rl.Rectangle = {avatar.x + 160, avatar.y, 540, 150}
 	rl.GuiLabel(message, strings.clone_to_cstring(current_message))
+
+    help: rl.Rectangle = {message.x + 450, message.y + 120, 60, 30}
+    if rl.GuiButton(help, "Help") {
+        show_help = true
+        rl.PlaySound(game_sfx.select)
+    }
 }
 
 draw_friendship_bar :: proc(start_pos: rl.Vector2) {
@@ -467,8 +474,10 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 		hexagon_points.top_right,
 	}
 
+    if won_game || show_help do return
+
 	hovered := rl.CheckCollisionPointPoly(rl.GetMousePosition(), &points[0], 6)
-	if hovered && !won_game {
+	if hovered {
 		cell_data.hovered = true
 		set_hovered_group(-1)
 		set_hovered_group(cell_data.group)
@@ -636,6 +645,27 @@ load_messages :: proc() {
 	}
 }
 
+draw_help :: proc() {
+    rl.DrawRectangle(0, 0, 720, 720, {0, 0, 0, 128})
+
+	roundness: f32 = 0.02
+	background: rl.Rectangle = {HELP_PADDING, HELP_PADDING, 720 - 2 * HELP_PADDING, 720 - 2 * HELP_PADDING}
+	// rl.DrawRectangleGradientEx(background, {144, 238, 144, 255}, {152, 251, 152, 255}, {236, 255, 220, 255}, {236, 255, 220, 255})
+	rl.DrawRectangleRounded(background, roundness, 20, {152, 251, 152, 255})
+
+	border: rl.Rectangle = background
+	rl.DrawRectangleRoundedLinesEx(border, roundness, 20, 4, {69, 69, 69, 255})
+
+    close: rl.Rectangle = {720 - 120, 2 * HELP_PADDING, 80, 30}
+    if rl.GuiButton(close, "Close") {
+        show_help = false
+        rl.PlaySound(game_sfx.select)
+    }
+
+    help: rl.Rectangle = {border.x + HELP_PADDING, border.y + HELP_PADDING, border.width - 2 * HELP_PADDING, border.height - 2 * HELP_PADDING}
+    rl.GuiLabel(help, "Help Meebee gather as much honey as possible!\nCombine honey-like comb cells to advance further and gain\nmore trust.\n\nAny two adjacent cells can be combined, and once they do\nit is considered a single group\n\nYou can combine groups together by merging their\nouter-layer cells\n\nHave fun!")
+}
+
 init :: proc() {
 	run = true
 	current_level_finished = true
@@ -666,9 +696,14 @@ init :: proc() {
         rl.LoadSound("assets/won_game.wav"),
     }
 
+    rl.SetSoundVolume(game_sfx.win_round, 0.8)
+
     background_music_1 = rl.LoadMusicStream("assets/background1.wav")
     background_music_2 = rl.LoadMusicStream("assets/background2.wav")
     background_music = background_music_1
+    rl.SetMusicVolume(background_music, 0.3)
+    rl.SetMusicVolume(background_music_1, 0.3)
+    rl.SetMusicVolume(background_music_2, 0.3)
     rl.PlayMusicStream(background_music)
 	load_messages()
 
@@ -695,6 +730,7 @@ update :: proc() {
 		draw_hex_row(grid_start_pos, 0)
 		draw_friendship_bar({0, 500})
 		draw_dialogue_box({0, 540})
+        if show_help do draw_help()
 	}
 	rl.EndDrawing()
 
