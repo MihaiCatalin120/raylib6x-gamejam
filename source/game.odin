@@ -52,8 +52,13 @@ Hexagon_Points :: struct {
 	top, top_left, bottom_left, bottom, bottom_right, top_right: rl.Vector2,
 }
 
+Sfx :: struct {
+    lose, merge, select, win_round: rl.Sound,
+}
+
 honey_color_target: Honey_Color_Target
 cells_data: [HONEYCOMB_SIZE + 1][HONEYCOMB_SIZE]Cell_Data
+game_sfx: Sfx
 
 get_hexagon_points :: proc(center: rl.Vector2, radius: f32) -> Hexagon_Points {
 	pos_increment_unit: f32 = radius / 2 * math.sqrt_f32(3.0)
@@ -302,6 +307,17 @@ set_selected_group :: proc(group: int) {
 	}
 }
 
+get_selected_group :: proc() -> int {
+    if !is_group_selected do return -1
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
+			if cells_data[row][col].selected do return cells_data[row][col].group
+		}
+	}
+
+    return -1
+}
+
 merge_groups :: proc(target_group: int) -> (rl.Color, int) {
 	if !is_group_selected do return {0, 0, 0, 0}, -1
 
@@ -411,6 +427,7 @@ process_win :: proc() {
 	reset_cell_data()
 	meebee.feeling = .HAPPY
 	pick_message(true)
+    rl.PlaySound(game_sfx.win_round)
 }
 
 process_lose :: proc() {
@@ -421,6 +438,7 @@ process_lose :: proc() {
 	if score > 0 do meebee.feeling = .MEH
 	else do meebee.feeling = .SAD
 	pick_message(false)
+    rl.PlaySound(game_sfx.lose)
 }
 
 compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
@@ -446,6 +464,7 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 			if !is_group_selected {
 				is_group_selected = true
 				set_selected_group(cell_data.group)
+                rl.PlaySound(game_sfx.select)
 			} else {
 				if cell_data.valid_option {
 					new_color, new_group := merge_groups(cell_data.group)
@@ -463,12 +482,18 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 						return
 					}
 
-					is_group_selected = true
 					set_selected_group(cell_data.group)
+                    rl.PlaySound(game_sfx.merge)
 				} else {
-					is_group_selected = true
-					set_selected_group(-1)
-					set_selected_group(cell_data.group)
+                    selected_group := get_selected_group()
+                    assert(selected_group != -1, "A group should have selected status when the global variable is_group_selected is true")
+                    set_selected_group(-1)
+                    is_group_selected = false
+                    if selected_group != cell_data.group {
+                        is_group_selected = true
+                        set_selected_group(cell_data.group)
+                    }
+                    rl.PlaySound(game_sfx.select)
 				}
 
 			}
@@ -560,12 +585,12 @@ load_messages :: proc() {
 		{
 			"Thank you so much!",
 			"I think I need to clean the jars, has been a\nwhile since I got anything...",
-			"I, Meebee, promise will pay back all the help\nreceived",
+			"I, Meebee, promise will pay back all the help\nreceived!",
 		},
 		{
 			"Wait, are you also a bee? You seem to figure\nthis out way better than I expected!",
 			"I'll make sure to keep some honey for you\nafter all of this",
-			"Are you also a witch hunter by any chance?\nMaybe I can get rid of this forever",
+			"Are you also a witch hunter by any chance?\nMaybe I can get rid of this forever...",
 		},
 		{
 			"If anybody annoys you ever, just reach out\nfor me, okay?",
@@ -586,14 +611,14 @@ load_messages :: proc() {
 			"The cells are too warped, maybe I should leave\nit as is...",
 		},
 		{
-			"I was minding my business.. and the witch pushed me of the flower! Of course I tried to sting her..",
+			"I was minding my business.. and the witch pushed\nme of the flower!\n\n...of course I tried to sting her",
 			"Maybe it will be faster if I learn the spell to\nreverse this..",
-			"I will make sure witches will have +100% \"discount\" on my honey jars! Yes, 100%, plus an extra sting pack while at it",
+			"I will make sure witches will have +100%\n\"discount\" on my honey jars!\n\nYes, 100%, plus an extra sting pack while at it",
 		},
 		{
 			"Maybe I am too foolish to think I can do it all today...",
 			"You were too kind already, it is fine...",
-			"I will manage, it's fine...",
+			"Don't stress to much, you did way better than me at least...",
 		},
 	}
 }
@@ -610,6 +635,7 @@ init :: proc() {
 
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(720, 720, "Help Meebee!")
+    rl.InitAudioDevice()
 
 	meebee = {
 		rl.LoadTexture("assets/meebee.png"),
@@ -618,6 +644,13 @@ init :: proc() {
 		rl.LoadTexture("assets/meebee_love.png"),
 		Meebee_Feeling.SAD,
 	}
+
+    game_sfx = {
+        rl.LoadSound("assets/lose.wav"),
+        rl.LoadSound("assets/merge.wav"),
+        rl.LoadSound("assets/select.wav"),
+        rl.LoadSound("assets/win_round.wav"),
+    }
 
 	load_messages()
 
@@ -660,6 +693,12 @@ shutdown :: proc() {
 	rl.UnloadTexture(meebee.meh)
 	rl.UnloadTexture(meebee.sad)
 	rl.CloseWindow()
+
+    rl.UnloadSound(game_sfx.lose)
+    rl.UnloadSound(game_sfx.merge)
+    rl.UnloadSound(game_sfx.select)
+    rl.UnloadSound(game_sfx.win_round)
+    rl.CloseAudioDevice()
 }
 
 should_run :: proc() -> bool {
