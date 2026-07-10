@@ -19,6 +19,7 @@ grid_start_pos: rl.Vector2
 meebee: Meebee
 messages_win, messages_lose: [4][3]string
 current_message: string
+message_timer: f32
 
 HELP_PADDING :: 20
 HEX_SIDE_LENGTH :: 40
@@ -180,8 +181,10 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 	rl.DrawRectangleRec(avatar, rl.YELLOW)
 	rl.DrawTexturePro(avatar_texture, source_avatar, avatar, {0, 0}, 0, rl.WHITE)
 
+    chars_per_second: f32 = 30
 	message: rl.Rectangle = {avatar.x + 160, avatar.y, 540, 150}
-	rl.GuiLabel(message, strings.clone_to_cstring(current_message))
+    message_progress := min(len(current_message), int(chars_per_second * message_timer))
+	rl.GuiLabel(message, strings.clone_to_cstring(current_message[:message_progress]))
 
     if won_game {
         restart: rl.Rectangle = {message.x + 410, message.y + 120, 100, 30}
@@ -418,6 +421,7 @@ pick_message :: proc(happy: bool) {
 	pick := rl.GetRandomValue(0, 2)
 
 	current_message = message_pool[tier][pick]
+    message_timer = 0
 }
 
 set_winning_board :: proc() {
@@ -443,6 +447,7 @@ process_win :: proc() {
 		set_winning_board()
 		won_game = true
 		current_message = "I will forever grateful for all the help you have\ngiven me! Hope we see each other soon!"
+        message_timer = 0
 		meebee.feeling = .LOVE
         rl.StopMusicStream(background_music)
         rl.PlaySound(game_sfx.won_game)
@@ -685,6 +690,7 @@ restart_game :: proc() {
     meebee.feeling = .SAD
     score = 0
 	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
+    message_timer = 0
     background_music = background_music_1
 
     should_restart = false
@@ -735,6 +741,7 @@ init :: proc() {
 	load_messages()
 
 	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
+    message_timer = 0
 
 	if current_level_finished do reset_cell_data()
 
@@ -743,6 +750,7 @@ init :: proc() {
 }
 
 update :: proc() {
+    message_timer += rl.GetFrameTime()
     if should_restart do restart_game()
     rl.UpdateMusicStream(background_music)
 	if should_flush_hovered_group(grid_start_pos, 0) {
