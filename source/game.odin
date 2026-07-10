@@ -20,6 +20,7 @@ meebee: Meebee
 messages_win, messages_lose: [4][3]string
 current_message: string
 message_timer: f32
+font: rl.Font
 
 HELP_PADDING :: 20
 HEX_SIDE_LENGTH :: 40
@@ -103,17 +104,19 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 draw_won_text :: proc() {
 	if !won_game do return
 
-	start_x: i32 = 290
-	y1: i32 = 160
-	y2: i32 = 280
-	rl.DrawText("Y", start_x, y1, 48, rl.BLACK)
-	rl.DrawText("O", start_x + 1.75 * HEX_SIDE_LENGTH, y1, 48, rl.BLACK)
-	rl.DrawText("U", start_x + 3.5 * HEX_SIDE_LENGTH, y1, 48, rl.BLACK)
+	start_x: f32 = 290
+	y1: f32 = 160
+	y2: f32 = 280
+	rl.DrawTextEx(font, "Y", {start_x, y1}, 48, 1.0, rl.BLACK)
+	rl.DrawTextEx(font, "O", {start_x + 1.75 * HEX_SIDE_LENGTH, y1}, 48, 1.0, rl.BLACK)
+	rl.DrawTextEx(font, "U", {start_x + 3.5 * HEX_SIDE_LENGTH, y1}, 48, 1.0, rl.BLACK)
 
-	rl.DrawText("W", start_x, y2, 48, rl.BLACK)
-	rl.DrawText("O", start_x + 1.75 * HEX_SIDE_LENGTH, y2, 48, rl.BLACK)
-	rl.DrawText("N", start_x + 3.5 * HEX_SIDE_LENGTH, y2, 48, rl.BLACK)
+	rl.DrawTextEx(font, "W", {start_x, y2}, 48, 1.0, rl.BLACK)
+	rl.DrawTextEx(font, "O", {start_x + 1.75 * HEX_SIDE_LENGTH, y2}, 48, 1.0, rl.BLACK)
+	rl.DrawTextEx(font, "N", {start_x + 3.5 * HEX_SIDE_LENGTH, y2}, 48, 1.0, rl.BLACK)
 
+	// rl.DrawTextEx(font, "!", {265 + 1.75 * HEX_SIDE_LENGTH, 340}, 48, 2.0, rl.BLACK)
+	// rl.DrawTextEx(font, "!", {265 + 3.5 * HEX_SIDE_LENGTH, 340}, 48, 2.0, rl.BLACK)
 	rl.DrawText("!", 265 + 1.75 * HEX_SIDE_LENGTH, 340, 48, rl.BLACK)
 	rl.DrawText("!", 265 + 3.5 * HEX_SIDE_LENGTH, 340, 48, rl.BLACK)
 }
@@ -625,12 +628,12 @@ load_messages :: proc() {
 		},
 		{
 			"Wait, are you also a bee? You seem to figure\nthis out way better than I expected!",
-			"I'll make sure to keep some honey for you\nafter all of this",
+			"I'll make sure to keep some honey for you\nafter all of this!",
 			"Are you also a witch hunter by any chance?\nMaybe I can get rid of this forever...",
 		},
 		{
 			"If anybody annoys you ever, just reach out\nfor me, okay?",
-			"At this point you could take care of the comb\nand I'll just defend it",
+			"At this point you could take care of the comb\nand I'll just defend it...",
 			"You make Mee Bee so happy!\n\n...hope you like puns",
 		},
 	}
@@ -647,9 +650,9 @@ load_messages :: proc() {
 			"The cells are too warped, maybe I should leave\nit as is...",
 		},
 		{
-			"I was minding my business.. and the witch pushed\nme of the flower!\n\n...of course I tried to sting her",
+			"I was minding my business.. and the witch pushed\nme of the flower!\n\n...of course I tried to sting her!",
 			"Maybe it will be faster if I learn the spell to\nreverse this..",
-			"I will make sure witches will have +100%\n\"discount\" on my honey jars!\n\nYes, 100%, plus an extra sting pack while at it",
+			"I will make sure witches will have +100%\n\"discount\" on my honey jars!\n\nYes, 100%, plus an extra sting pack while at it!",
 		},
 		{
 			"Maybe I am too foolish to think I can do it all\ntoday...",
@@ -745,8 +748,11 @@ init :: proc() {
 
 	if current_level_finished do reset_cell_data()
 
+    // Font source: https://www.dafont.com/militech.font (Adam Rucki)
+    font = rl.LoadFont("assets/militech.ttf")
 	rl.GuiSetStyle(.DEFAULT, i32(rl.GuiDefaultProperty.TEXT_SIZE), 24)
 	rl.GuiSetStyle(.DEFAULT, i32(rl.GuiDefaultProperty.TEXT_LINE_SPACING), 24)
+    rl.GuiSetFont(font)
 }
 
 update :: proc() {
@@ -783,6 +789,7 @@ shutdown :: proc() {
 	rl.UnloadTexture(meebee.happy)
 	rl.UnloadTexture(meebee.meh)
 	rl.UnloadTexture(meebee.sad)
+    rl.UnloadFont(font)
 	rl.CloseWindow()
 
     rl.UnloadSound(game_sfx.lose)
