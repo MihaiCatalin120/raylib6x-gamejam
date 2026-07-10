@@ -21,6 +21,7 @@ messages_win, messages_lose: [4][3]string
 current_message: string
 message_timer: f32
 font: rl.Font
+color_timer: f32
 
 HELP_PADDING :: 20
 HEX_SIDE_LENGTH :: 40
@@ -92,7 +93,7 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 			outline_color = rl.RED
 		}
 		if cell_data.valid_option {
-			outline_color = rl.WHITE
+			outline_color = {u8(math.abs(math.sin_f32(color_timer)) * 255), u8(math.abs(math.sin_f32(color_timer)) * 255), 255, 255}
 		}
 		if cell_data.hovered {
 			outline_color = rl.BLACK
@@ -757,6 +758,8 @@ init :: proc() {
 
 update :: proc() {
     message_timer += rl.GetFrameTime()
+    color_timer += rl.GetFrameTime() * 2
+
     if should_restart do restart_game()
     rl.UpdateMusicStream(background_music)
 	if should_flush_hovered_group(grid_start_pos, 0) {
