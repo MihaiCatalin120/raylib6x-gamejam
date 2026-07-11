@@ -22,6 +22,7 @@ current_message: string
 message_timer: f32
 font: rl.Font
 color_timer: f32
+muted: bool
 
 HELP_PADDING :: 20
 HEX_SIDE_LENGTH :: 40
@@ -63,6 +64,7 @@ Sfx :: struct {
 
 honey_color_target: Honey_Color_Target
 cells_data: [HONEYCOMB_SIZE + 1][HONEYCOMB_SIZE]Cell_Data
+help_tiles: [9]Cell_Data
 game_sfx: Sfx
 background_music: rl.Music
 background_music_1: rl.Music
@@ -137,7 +139,6 @@ draw_hex_row :: proc(start_pos: rl.Vector2, level: int) {
 			start_pos + {f32(i * HEX_SIDE_LENGTH) * math.sqrt_f32(3.0), 0},
 			cells_data[row_index][i],
 		)
-
 	}
 
 	draw_won_text()
@@ -691,15 +692,30 @@ draw_help :: proc() {
 	}
 
 	help: rl.Rectangle = {
-		border.x + HELP_PADDING,
-		border.y + HELP_PADDING,
-		border.width - 2 * HELP_PADDING,
+		border.x + HELP_PADDING + 10,
+		border.y + HELP_PADDING + 60,
+		border.width - 2 * HELP_PADDING - 10,
 		border.height - 2 * HELP_PADDING,
 	}
 	rl.GuiLabel(
 		help,
 		"Help Meebee gather as much honey as possible!\nCombine honey-like comb cells to advance further and gain\nmore trust.\n\nAny two adjacent cells can be combined, once they do\nit is considered a single group.\n\nYou can combine groups together by merging their\nouter-layer cells.\n\nHave fun!",
 	)
+
+	start_pos: rl.Vector2 = {80, 120}
+	for i in 0 ..< len(help_tiles) {
+		draw_hex_tile(
+			start_pos + {f32(i * HEX_SIDE_LENGTH) * math.sqrt_f32(3.0), 0},
+			help_tiles[i],
+		)
+	}
+	start_pos = {80, 600}
+	for i in 0 ..< len(help_tiles) {
+		draw_hex_tile(
+			start_pos + {f32(i * HEX_SIDE_LENGTH) * math.sqrt_f32(3.0), 0},
+			help_tiles[len(help_tiles) - i - 1],
+		)
+	}
 }
 
 restart_game :: proc() {
@@ -720,6 +736,59 @@ restart_game :: proc() {
 	should_restart = false
 }
 
+toggleMuted :: proc() {
+	if !muted {
+		rl.SetMusicVolume(background_music, 0)
+		rl.SetMusicVolume(background_music_1, 0)
+		rl.SetMusicVolume(background_music_2, 0)
+
+		rl.SetSoundVolume(game_sfx.lose, 0)
+		rl.SetSoundVolume(game_sfx.merge, 0)
+		rl.SetSoundVolume(game_sfx.select, 0)
+		rl.SetSoundVolume(game_sfx.win_round, 0)
+		rl.SetSoundVolume(game_sfx.won_game, 0)
+	} else {
+		rl.SetMusicVolume(background_music, 0.3)
+		rl.SetMusicVolume(background_music_1, 0.3)
+		rl.SetMusicVolume(background_music_2, 0.3)
+
+		rl.SetSoundVolume(game_sfx.lose, 1)
+		rl.SetSoundVolume(game_sfx.merge, 1)
+		rl.SetSoundVolume(game_sfx.select, 1)
+		rl.SetSoundVolume(game_sfx.win_round, 0.8)
+		rl.SetSoundVolume(game_sfx.won_game, 0.8)
+	}
+
+	muted = !muted
+}
+
+generate_help_tiles :: proc() {
+	for i in 0 ..< len(help_tiles) {
+		help_tiles[i] = {
+			{
+				u8(
+					rl.GetRandomValue(
+						i32(honey_color_target.r_min),
+						i32(honey_color_target.r_max),
+					),
+				),
+				u8(
+					rl.GetRandomValue(
+						i32(honey_color_target.g_min),
+						i32(honey_color_target.g_max),
+					),
+				),
+				55,
+				255,
+			},
+			-1,
+			false,
+			false,
+			false,
+		}
+	}
+}
+
 init :: proc() {
 	run = true
 	current_level_finished = true
@@ -731,6 +800,7 @@ init :: proc() {
 	new_group_index = (HONEYCOMB_SIZE + 1) * HONEYCOMB_SIZE
 	honey_color_target = {180, 255, 120, 200, 20, 90}
 	grid_start_pos = {200, 240}
+	muted = false
 
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(720, 720, "Help Meebee!")
@@ -764,6 +834,8 @@ init :: proc() {
 	rl.PlayMusicStream(background_music)
 	load_messages()
 
+	generate_help_tiles()
+
 	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
 	message_timer = 0
 
@@ -796,6 +868,10 @@ update :: proc() {
 		draw_friendship_bar({0, 500})
 		draw_dialogue_box({0, 540})
 		if show_help do draw_help()
+		if !show_help {
+			mute: rl.Rectangle = {720 - 100, 450, 80, 30}
+			if rl.GuiButton(mute, muted ? "Unmute" : "Mute") do toggleMuted()
+		}
 	}
 	rl.EndDrawing()
 
