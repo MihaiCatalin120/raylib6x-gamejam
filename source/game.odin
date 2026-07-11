@@ -58,7 +58,7 @@ Hexagon_Points :: struct {
 }
 
 Sfx :: struct {
-    lose, merge, select, win_round, won_game: rl.Sound,
+	lose, merge, select, win_round, won_game: rl.Sound,
 }
 
 honey_color_target: Honey_Color_Target
@@ -93,7 +93,12 @@ draw_hex_tile :: proc(center: rl.Vector2, cell_data: Cell_Data) {
 			outline_color = rl.RED
 		}
 		if cell_data.valid_option {
-			outline_color = {u8(math.abs(math.sin_f32(color_timer)) * 255), u8(math.abs(math.sin_f32(color_timer)) * 255), 255, 255}
+			outline_color = {
+				u8(math.abs(math.sin_f32(color_timer)) * 255),
+				u8(math.abs(math.sin_f32(color_timer)) * 255),
+				255,
+				255,
+			}
 		}
 		if cell_data.hovered {
 			outline_color = rl.BLACK
@@ -185,24 +190,24 @@ draw_dialogue_box :: proc(start_pos: rl.Vector2) {
 	rl.DrawRectangleRec(avatar, rl.YELLOW)
 	rl.DrawTexturePro(avatar_texture, source_avatar, avatar, {0, 0}, 0, rl.WHITE)
 
-    chars_per_second: f32 = 30
+	chars_per_second: f32 = 30
 	message: rl.Rectangle = {avatar.x + 160, avatar.y, 540, 150}
-    message_progress := min(len(current_message), int(chars_per_second * message_timer))
+	message_progress := min(len(current_message), int(chars_per_second * message_timer))
 	rl.GuiLabel(message, strings.clone_to_cstring(current_message[:message_progress]))
 
-    if won_game {
-        restart: rl.Rectangle = {message.x + 410, message.y + 120, 100, 30}
-        if rl.GuiButton(restart, "Restart") {
-            should_restart = true
-            rl.PlaySound(game_sfx.select)
-        }
-    } else {
-        help: rl.Rectangle = {message.x + 450, message.y + 120, 60, 30}
-        if rl.GuiButton(help, "Help") {
-            show_help = true
-            rl.PlaySound(game_sfx.select)
-        }
-    }
+	if won_game {
+		restart: rl.Rectangle = {message.x + 410, message.y + 120, 100, 30}
+		if rl.GuiButton(restart, "Restart") {
+			should_restart = true
+			rl.PlaySound(game_sfx.select)
+		}
+	} else {
+		help: rl.Rectangle = {message.x + 450, message.y + 120, 60, 30}
+		if rl.GuiButton(help, "Help") {
+			show_help = true
+			rl.PlaySound(game_sfx.select)
+		}
+	}
 }
 
 draw_friendship_bar :: proc(start_pos: rl.Vector2) {
@@ -334,14 +339,14 @@ set_selected_group :: proc(group: int) {
 }
 
 get_selected_group :: proc() -> int {
-    if !is_group_selected do return -1
+	if !is_group_selected do return -1
 	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
 		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
 			if cells_data[row][col].selected do return cells_data[row][col].group
 		}
 	}
 
-    return -1
+	return -1
 }
 
 merge_groups :: proc(target_group: int) -> (rl.Color, int) {
@@ -425,7 +430,7 @@ pick_message :: proc(happy: bool) {
 	pick := rl.GetRandomValue(0, 2)
 
 	current_message = message_pool[tier][pick]
-    message_timer = 0
+	message_timer = 0
 }
 
 set_winning_board :: proc() {
@@ -442,41 +447,41 @@ set_winning_board :: proc() {
 process_win :: proc() {
 	fmt.println("DEBUG: Won round!!!!!")
 	score += 3
-    if score >= 10 {
-        background_music = background_music_2
-        rl.PlayMusicStream(background_music)
-    }
+	if score >= 10 {
+		background_music = background_music_2
+		rl.PlayMusicStream(background_music)
+	}
 	if score >= MAX_LEVEL {
 		score = MAX_LEVEL
 		set_winning_board()
 		won_game = true
 		current_message = "I will forever grateful for all the help you have\ngiven me! Hope we see each other soon!"
-        message_timer = 0
+		message_timer = 0
 		meebee.feeling = .LOVE
-        rl.StopMusicStream(background_music)
-        rl.PlaySound(game_sfx.won_game)
+		rl.StopMusicStream(background_music)
+		rl.PlaySound(game_sfx.won_game)
 		return
 	}
 	current_level_finished = true
 	reset_cell_data()
 	meebee.feeling = .HAPPY
 	pick_message(true)
-    rl.PlaySound(game_sfx.win_round)
+	rl.PlaySound(game_sfx.win_round)
 }
 
 process_lose :: proc() {
 	fmt.println("DEBUG: Lost round......")
 	if score > 0 do score -= 1
-    if score < 10 {
-        background_music = background_music_1
-        rl.PlayMusicStream(background_music)
-    }
+	if score < 10 {
+		background_music = background_music_1
+		rl.PlayMusicStream(background_music)
+	}
 	current_level_finished = true
 	reset_cell_data()
 	if score > 0 do meebee.feeling = .MEH
 	else do meebee.feeling = .SAD
 	pick_message(false)
-    rl.PlaySound(game_sfx.lose)
+	rl.PlaySound(game_sfx.lose)
 }
 
 compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
@@ -492,7 +497,7 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 		hexagon_points.top_right,
 	}
 
-    if won_game || show_help do return
+	if won_game || show_help do return
 
 	hovered := rl.CheckCollisionPointPoly(rl.GetMousePosition(), &points[0], 6)
 	if hovered {
@@ -504,7 +509,7 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 			if !is_group_selected {
 				is_group_selected = true
 				set_selected_group(cell_data.group)
-                rl.PlaySound(game_sfx.select)
+				rl.PlaySound(game_sfx.select)
 			} else {
 				if cell_data.valid_option {
 					new_color, new_group := merge_groups(cell_data.group)
@@ -523,17 +528,17 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 					}
 
 					set_selected_group(cell_data.group)
-                    rl.PlaySound(game_sfx.merge)
+					rl.PlaySound(game_sfx.merge)
 				} else {
-                    selected_group := get_selected_group()
-                    // assert(selected_group != -1, "A group should have selected status when the global variable is_group_selected is true")
-                    set_selected_group(-1)
-                    is_group_selected = false
-                    if selected_group != cell_data.group {
-                        is_group_selected = true
-                        set_selected_group(cell_data.group)
-                    }
-                    rl.PlaySound(game_sfx.select)
+					selected_group := get_selected_group()
+					// assert(selected_group != -1, "A group should have selected status when the global variable is_group_selected is true")
+					set_selected_group(-1)
+					is_group_selected = false
+					if selected_group != cell_data.group {
+						is_group_selected = true
+						set_selected_group(cell_data.group)
+					}
+					rl.PlaySound(game_sfx.select)
 				}
 
 			}
@@ -664,40 +669,55 @@ load_messages :: proc() {
 }
 
 draw_help :: proc() {
-    rl.DrawRectangle(0, 0, 720, 720, {0, 0, 0, 128})
+	rl.DrawRectangle(0, 0, 720, 720, {0, 0, 0, 128})
 
 	roundness: f32 = 0.02
-	background: rl.Rectangle = {HELP_PADDING, HELP_PADDING, 720 - 2 * HELP_PADDING, 720 - 2 * HELP_PADDING}
+	background: rl.Rectangle = {
+		HELP_PADDING,
+		HELP_PADDING,
+		720 - 2 * HELP_PADDING,
+		720 - 2 * HELP_PADDING,
+	}
 	// rl.DrawRectangleGradientEx(background, {144, 238, 144, 255}, {152, 251, 152, 255}, {236, 255, 220, 255}, {236, 255, 220, 255})
 	rl.DrawRectangleRounded(background, roundness, 20, {152, 251, 152, 255})
 
 	border: rl.Rectangle = background
 	rl.DrawRectangleRoundedLinesEx(border, roundness, 20, 4, {69, 69, 69, 255})
 
-    close: rl.Rectangle = {720 - 120, 2 * HELP_PADDING, 80, 30}
-    if rl.GuiButton(close, "Close") {
-        show_help = false
-        rl.PlaySound(game_sfx.select)
-    }
+	close: rl.Rectangle = {720 - 120, 2 * HELP_PADDING, 80, 30}
+	if rl.GuiButton(close, "Close") {
+		show_help = false
+		rl.PlaySound(game_sfx.select)
+	}
 
-    help: rl.Rectangle = {border.x + HELP_PADDING, border.y + HELP_PADDING, border.width - 2 * HELP_PADDING, border.height - 2 * HELP_PADDING}
-    rl.GuiLabel(help, "Help Meebee gather as much honey as possible!\nCombine honey-like comb cells to advance further and gain\nmore trust.\n\nAny two adjacent cells can be combined, once they do\nit is considered a single group.\n\nYou can combine groups together by merging their\nouter-layer cells.\n\nHave fun!")
+	help: rl.Rectangle = {
+		border.x + HELP_PADDING,
+		border.y + HELP_PADDING,
+		border.width - 2 * HELP_PADDING,
+		border.height - 2 * HELP_PADDING,
+	}
+	rl.GuiLabel(
+		help,
+		"Help Meebee gather as much honey as possible!\nCombine honey-like comb cells to advance further and gain\nmore trust.\n\nAny two adjacent cells can be combined, once they do\nit is considered a single group.\n\nYou can combine groups together by merging their\nouter-layer cells.\n\nHave fun!",
+	)
 }
 
 restart_game :: proc() {
-    reset_cell_data()
+	reset_cell_data()
 
 	won_game = false
 	is_group_hovered = false
 	is_group_selected = false
-    show_help = false
-    meebee.feeling = .SAD
-    score = 0
+	show_help = false
+	meebee.feeling = .SAD
+	score = 0
 	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
-    message_timer = 0
-    background_music = background_music_1
+	message_timer = 0
+	background_music = background_music_1
+	rl.StopMusicStream(background_music)
+	rl.PlayMusicStream(background_music)
 
-    should_restart = false
+	should_restart = false
 }
 
 init :: proc() {
@@ -706,15 +726,15 @@ init :: proc() {
 	won_game = false
 	is_group_hovered = false
 	is_group_selected = false
-    show_help = false
-    should_restart = false
+	show_help = false
+	should_restart = false
 	new_group_index = (HONEYCOMB_SIZE + 1) * HONEYCOMB_SIZE
 	honey_color_target = {180, 255, 120, 200, 20, 90}
 	grid_start_pos = {200, 240}
 
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(720, 720, "Help Meebee!")
-    rl.InitAudioDevice()
+	rl.InitAudioDevice()
 
 	meebee = {
 		rl.LoadTexture("assets/meebee.png"),
@@ -724,44 +744,44 @@ init :: proc() {
 		Meebee_Feeling.SAD,
 	}
 
-    game_sfx = {
-        rl.LoadSound("assets/lose.wav"),
-        rl.LoadSound("assets/merge.wav"),
-        rl.LoadSound("assets/select.wav"),
-        rl.LoadSound("assets/win_round.wav"),
-        rl.LoadSound("assets/won_game.wav"),
-    }
+	game_sfx = {
+		rl.LoadSound("assets/lose.wav"),
+		rl.LoadSound("assets/merge.wav"),
+		rl.LoadSound("assets/select.wav"),
+		rl.LoadSound("assets/win_round.wav"),
+		rl.LoadSound("assets/won_game.wav"),
+	}
 
-    rl.SetSoundVolume(game_sfx.win_round, 0.8)
-    rl.SetSoundVolume(game_sfx.won_game, 0.8)
+	rl.SetSoundVolume(game_sfx.win_round, 0.8)
+	rl.SetSoundVolume(game_sfx.won_game, 0.8)
 
-    background_music_1 = rl.LoadMusicStream("assets/background1.wav")
-    background_music_2 = rl.LoadMusicStream("assets/background2.wav")
-    background_music = background_music_1
-    rl.SetMusicVolume(background_music, 0.3)
-    rl.SetMusicVolume(background_music_1, 0.3)
-    rl.SetMusicVolume(background_music_2, 0.3)
-    rl.PlayMusicStream(background_music)
+	background_music_1 = rl.LoadMusicStream("assets/background1.wav")
+	background_music_2 = rl.LoadMusicStream("assets/background2.wav")
+	background_music = background_music_1
+	rl.SetMusicVolume(background_music, 0.3)
+	rl.SetMusicVolume(background_music_1, 0.3)
+	rl.SetMusicVolume(background_music_2, 0.3)
+	rl.PlayMusicStream(background_music)
 	load_messages()
 
 	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
-    message_timer = 0
+	message_timer = 0
 
 	if current_level_finished do reset_cell_data()
 
-    // Font source: https://www.dafont.com/militech.font (Adam Rucki)
-    font = rl.LoadFont("assets/militech.ttf")
+	// Font source: https://www.dafont.com/militech.font (Adam Rucki)
+	font = rl.LoadFont("assets/militech.ttf")
 	rl.GuiSetStyle(.DEFAULT, i32(rl.GuiDefaultProperty.TEXT_SIZE), 24)
 	rl.GuiSetStyle(.DEFAULT, i32(rl.GuiDefaultProperty.TEXT_LINE_SPACING), 24)
-    rl.GuiSetFont(font)
+	rl.GuiSetFont(font)
 }
 
 update :: proc() {
-    message_timer += rl.GetFrameTime()
-    color_timer += rl.GetFrameTime() * 2
+	message_timer += rl.GetFrameTime()
+	color_timer += rl.GetFrameTime() * 2
 
-    if should_restart do restart_game()
-    rl.UpdateMusicStream(background_music)
+	if should_restart do restart_game()
+	rl.UpdateMusicStream(background_music)
 	if should_flush_hovered_group(grid_start_pos, 0) {
 		is_group_hovered = false
 		set_hovered_group(-1)
@@ -775,7 +795,7 @@ update :: proc() {
 		draw_hex_row(grid_start_pos, 0)
 		draw_friendship_bar({0, 500})
 		draw_dialogue_box({0, 540})
-        if show_help do draw_help()
+		if show_help do draw_help()
 	}
 	rl.EndDrawing()
 
@@ -792,17 +812,17 @@ shutdown :: proc() {
 	rl.UnloadTexture(meebee.happy)
 	rl.UnloadTexture(meebee.meh)
 	rl.UnloadTexture(meebee.sad)
-    rl.UnloadFont(font)
+	rl.UnloadFont(font)
 	rl.CloseWindow()
 
-    rl.UnloadSound(game_sfx.lose)
-    rl.UnloadSound(game_sfx.merge)
-    rl.UnloadSound(game_sfx.select)
-    rl.UnloadSound(game_sfx.win_round)
-    rl.UnloadMusicStream(background_music)
-    rl.UnloadMusicStream(background_music_1)
-    rl.UnloadMusicStream(background_music_2)
-    rl.CloseAudioDevice()
+	rl.UnloadSound(game_sfx.lose)
+	rl.UnloadSound(game_sfx.merge)
+	rl.UnloadSound(game_sfx.select)
+	rl.UnloadSound(game_sfx.win_round)
+	rl.UnloadMusicStream(background_music)
+	rl.UnloadMusicStream(background_music_1)
+	rl.UnloadMusicStream(background_music_2)
+	rl.CloseAudioDevice()
 }
 
 should_run :: proc() -> bool {
