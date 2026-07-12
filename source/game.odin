@@ -20,6 +20,9 @@ meebee: Meebee
 messages_win, messages_lose: [4][3]string
 current_message: string
 message_timer: f32
+merge_timer: f32
+merge_target_color: rl.Color
+merge_target_group: int
 font: rl.Font
 color_timer: f32
 muted: bool
@@ -29,17 +32,19 @@ HEX_SIDE_LENGTH :: 40
 HEX_SIDE_THICKNESS :: 4
 HONEYCOMB_SIZE :: 6
 MAX_LEVEL :: 20
+MERGE_MAX_TIMER :: 0.25
 
 Honey_Color_Target :: struct {
 	r_min, r_max, g_min, g_max, b_min, b_max: u8,
 }
 
 Cell_Data :: struct {
-	color:        rl.Color,
-	group:        int,
-	hovered:      bool,
-	selected:     bool,
-	valid_option: bool,
+	color:             rl.Color,
+	merge_start_color: rl.Color,
+	group:             int,
+	hovered:           bool,
+	selected:          bool,
+	valid_option:      bool,
 }
 
 Meebee_Feeling :: enum {
@@ -261,6 +266,7 @@ reset_cell_data :: proc() {
 
 			cells_data[row][col] = {
 				{r, g, b, 200},
+				{},
 				row * HONEYCOMB_SIZE + col,
 				false,
 				false,
@@ -350,6 +356,23 @@ get_selected_group :: proc() -> int {
 	return -1
 }
 
+compute_merge_colors :: proc() {
+	for row := 0; row < HONEYCOMB_SIZE + 1; row += 1 {
+		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
+			if cells_data[row][col].group == merge_target_group {
+				start: rl.Color = cells_data[row][col].merge_start_color
+				progress: f32 = merge_timer / MERGE_MAX_TIMER
+				cells_data[row][col].color = {
+					u8(f32(start.r) + (f32(merge_target_color.r) - f32(start.r)) * progress),
+					u8(f32(start.g) + (f32(merge_target_color.g) - f32(start.g)) * progress),
+					u8(f32(start.b) + (f32(merge_target_color.b) - f32(start.b)) * progress),
+					u8(f32(start.a) + (f32(merge_target_color.a) - f32(start.a)) * progress),
+				}
+			}
+		}
+	}
+}
+
 merge_groups :: proc(target_group: int) -> (rl.Color, int) {
 	if !is_group_selected do return {0, 0, 0, 0}, -1
 
@@ -384,6 +407,8 @@ merge_groups :: proc(target_group: int) -> (rl.Color, int) {
 		255,
 	}
 
+	merge_timer = 0
+
 	new_group := new_group_index
 	new_group_index += 1
 
@@ -391,8 +416,10 @@ merge_groups :: proc(target_group: int) -> (rl.Color, int) {
 		for col := 0; col < HONEYCOMB_SIZE - (math.abs(HONEYCOMB_SIZE / 2 - row)); col += 1 {
 			if cells_data[row][col].group == source_group ||
 			   cells_data[row][col].group == target_group {
+				cells_data[row][col].merge_start_color = cells_data[row][col].color
 				cells_data[row][col].group = new_group
-				cells_data[row][col].color = new_color
+				merge_target_color = new_color
+				merge_target_group = new_group
 				cells_data[row][col].valid_option = false
 			}
 		}
@@ -486,6 +513,8 @@ process_lose :: proc() {
 }
 
 compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
+	if won_game || show_help do return
+
 	radius := f32(HEX_SIDE_LENGTH - HEX_SIDE_THICKNESS)
 
 	hexagon_points := get_hexagon_points(center, radius)
@@ -497,8 +526,6 @@ compute_cell_state :: proc(center: rl.Vector2, cell_data: ^Cell_Data) {
 		hexagon_points.bottom_right,
 		hexagon_points.top_right,
 	}
-
-	if won_game || show_help do return
 
 	hovered := rl.CheckCollisionPointPoly(rl.GetMousePosition(), &points[0], 6)
 	if hovered {
@@ -781,6 +808,7 @@ generate_help_tiles :: proc() {
 				55,
 				255,
 			},
+			{},
 			-1,
 			false,
 			false,
@@ -838,6 +866,7 @@ init :: proc() {
 
 	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
 	message_timer = 0
+	merge_timer = 0
 
 	if current_level_finished do reset_cell_data()
 
@@ -851,6 +880,7 @@ init :: proc() {
 update :: proc() {
 	message_timer += rl.GetFrameTime()
 	color_timer += rl.GetFrameTime() * 2
+	merge_timer += rl.GetFrameTime()
 
 	if should_restart do restart_game()
 	rl.UpdateMusicStream(background_music)
@@ -858,6 +888,7 @@ update :: proc() {
 		is_group_hovered = false
 		set_hovered_group(-1)
 	}
+	if merge_timer <= MERGE_MAX_TIMER do compute_merge_colors()
 	compute_cell_states(grid_start_pos, 0)
 	if is_group_selected do mark_valid_moves()
 
