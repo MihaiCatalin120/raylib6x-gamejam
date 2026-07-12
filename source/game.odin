@@ -667,7 +667,7 @@ load_messages :: proc() {
 		},
 		{
 			"If anybody annoys you ever, just reach out\nfor me, okay?",
-			"At this point you could take care of the comb\nand I'll just defend it...",
+			"At this point you could take care of the honeycomb\nand I'll just defend it...",
 			"You make Mee Bee so happy!\n\n...hope you like puns",
 		},
 	}
@@ -726,7 +726,7 @@ draw_help :: proc() {
 	}
 	rl.GuiLabel(
 		help,
-		"Help Meebee gather as much honey as possible!\nCombine honey-like comb cells to advance further and gain\nmore trust.\n\nAny two adjacent cells can be combined, once they do\nit is considered a single group.\n\nYou can combine groups together by merging their\nouter-layer cells.\n\nHave fun!",
+		"Help Meebee gather as much honey as possible!\nCombine honeycomb cells to advance further and gain\nmore trust.\n\nAny two adjacent cells can be combined, once they do\nit is considered a single group.\n\nYou can combine groups together by merging their\nouter-layer cells.\n\nHave fun!",
 	)
 
 	start_pos: rl.Vector2 = {80, 120}
@@ -754,7 +754,7 @@ restart_game :: proc() {
 	show_help = false
 	meebee.feeling = .SAD
 	score = 0
-	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
+	current_message = "That blasted witch keeps cursing my honeycomb and \nmessing up all the cells! Will you help me?\n\n...please?"
 	message_timer = 0
 	background_music = background_music_1
 	rl.StopMusicStream(background_music)
@@ -864,7 +864,7 @@ init :: proc() {
 
 	generate_help_tiles()
 
-	current_message = "That blasted witch keeps cursing my comb and \nmessing up all the cells! Will you help me?\n\n...please?"
+	current_message = "That blasted witch keeps cursing my honeycomb and \nmessing up all the cells! Will you help me?\n\n...please?"
 	message_timer = 0
 	merge_timer = 0
 
