@@ -927,8 +927,8 @@ shutdown :: proc() {
 	rl.UnloadSound(game_sfx.select)
 	rl.UnloadSound(game_sfx.win_round)
 	rl.UnloadMusicStream(background_music)
-	rl.UnloadMusicStream(background_music_1)
-	rl.UnloadMusicStream(background_music_2)
+	// rl.UnloadMusicStream(background_music_1)
+	// rl.UnloadMusicStream(background_music_2)
 	rl.CloseAudioDevice()
 }
 
