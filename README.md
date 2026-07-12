@@ -1,6 +1,15 @@
 # Meebee's Honeycomb
 ![image](./assets/meebee.png)
 
+<table>
+  <th>
+    <img src="presentation/meebees-honeycomb-gameplay.png" alt="Meebee's honeycomb gameplay" title="Meebee's honeycomb gameplay" width="300"/>
+  </th>
+  <th>
+    <img src="presentation/meebees-honeycomb-gameplay-2.png" alt="Meebee's honeycomb gameplay" title="Meebee's honeycomb gameplay" width="300"/>
+  </th>
+</table>
+
 Merge honeycomb cells to help Meebee repair the witch curse! Do it enough times to gain her trust!
 
 Created with [Raylib](https://www.raylib.com/) <br>
